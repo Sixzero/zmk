@@ -12,7 +12,7 @@ Dynamic macros are cleared on reboot.
 :::
 
 :::warning
-Dynamic macros are memory intensive, and may cause the firmware to crash. It is recommended to use only 1 dynamic macro in your keymap and re-record it if it needs changed.
+Dynamic macros are memory intensive, and may cause the firmware to crash. It is recommended to use only 1 dynamic macro in your keymap and re-record it if it needs changed. The maximum amount of actions to be recorded can be set with `CONFIG_ZMK_DYNAMIC_MACRO_MAX_ACTIONS` (default 64).
 :::
 
 ## Dynamic Macro Action Defines

@@ -17,7 +17,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #define DT_DRV_COMPAT zmk_behavior_dynamic_macro
 
-#define ZMK_BHV_DYNAMIC_MACRO_MAX_ACTIONS 80
 #define HID_KEY_USAGE_PAGE 0x70000
 
 struct behavior_dynamic_macro_bind {
@@ -30,7 +29,7 @@ struct behavior_dynamic_macro_state {
     bool recording;
     uint32_t lastEventTime;
     uint32_t count;
-    struct behavior_dynamic_macro_bind bindings[ZMK_BHV_DYNAMIC_MACRO_MAX_ACTIONS];
+    struct behavior_dynamic_macro_bind bindings[CONFIG_ZMK_DYNAMIC_MACRO_MAX_ACTIONS];
 };
 
 struct behavior_dynamic_macro_config {
@@ -147,7 +146,7 @@ static int dynamic_macro_keycode_state_changed_listener(const zmk_event_t *eh) {
 
     for (int i = 0; i < ZMK_BHV_RECORDING_MACRO_MAX; i++) {
         struct recording_macro *macro = &recording_macros[i];
-        if (macro->recording) {
+        if (macro->recording && macro->count < CONFIG_ZMK_DYNAMIC_MACRO_MAX_ACTIONS) {
             uint32_t eventTime = k_uptime_get();
             uint32_t elapsedTime = eventTime - macro->state->lastEventTime;
             macro->state->lastEventTime = eventTime;
