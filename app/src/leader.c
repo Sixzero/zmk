@@ -24,7 +24,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 bool leader_status;
 int32_t count;
-int32_t tapping_term_ms;
+int32_t timeout_ms;
 int32_t active_leader_position;
 struct k_work_delayable release_timer;
 int64_t release_at;
@@ -182,7 +182,7 @@ static int stop_timer() {
 }
 
 static void reset_timer(int32_t timestamp) {
-    release_at = timestamp + tapping_term_ms;
+    release_at = timestamp + timeout_ms;
     int32_t ms_left = release_at - k_uptime_get();
     if (ms_left > 0) {
         k_work_schedule(&release_timer, K_MSEC(ms_left));
@@ -190,11 +190,11 @@ static void reset_timer(int32_t timestamp) {
     }
 }
 
-void zmk_leader_activate(int32_t tapping_term, uint32_t position) {
+void zmk_leader_activate(int32_t timeout, uint32_t position) {
     LOG_DBG("leader key activated");
     leader_status = true;
     count = 0;
-    tapping_term_ms = tapping_term;
+    timeout_ms = timeout;
     active_leader_position = position;
     reset_timer(k_uptime_get());
 };

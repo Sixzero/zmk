@@ -10,4 +10,4 @@ include: zero_param.yaml
 properties:
   timeout-ms:
     type: int
-    default: 200
+    default: -1
