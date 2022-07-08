@@ -6,6 +6,6 @@
 
 #pragma once
 
-void zmk_leader_activate(uint32_t position);
+void zmk_leader_activate(int32_t tapping_term, uint32_t position);
 void zmk_leader_deactivate();
 bool zmk_leader_get_status();

@@ -23,13 +23,17 @@
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 bool leader_status;
-int32_t count = 0;
+int32_t count;
+int32_t tapping_term_ms;
 int32_t active_leader_position;
+struct k_work_delayable release_timer;
+int64_t release_at;
+bool timer_started;
+bool timer_cancelled;
 
 struct leader_seq_cfg {
     int32_t key_positions[CONFIG_ZMK_LEADER_MAX_KEYS_PER_SEQUENCE];
     int32_t key_position_len;
-    int32_t timeout_ms;
     // if slow release is set, the combo releases when the last key is released.
     // otherwise, the combo releases when the first key is released.
     bool slow_release;
@@ -168,11 +172,31 @@ static inline int release_leader_behavior(struct leader_seq_cfg *sequence, int32
     return behavior_keymap_binding_released(&sequence->behavior, event);
 }
 
-void zmk_leader_activate(uint32_t position) {
+static int stop_timer() {
+    int timer_cancel_result = k_work_cancel_delayable(&release_timer);
+    if (timer_cancel_result == -EINPROGRESS) {
+        // too late to cancel, we'll let the timer handler clear up.
+        timer_cancelled = true;
+    }
+    return timer_cancel_result;
+}
+
+static void reset_timer(int32_t timestamp) {
+    release_at = timestamp + tapping_term_ms;
+    int32_t ms_left = release_at - k_uptime_get();
+    if (ms_left > 0) {
+        k_work_schedule(&release_timer, K_MSEC(ms_left));
+        LOG_DBG("Successfully reset leader timer");
+    }
+}
+
+void zmk_leader_activate(int32_t tapping_term, uint32_t position) {
     LOG_DBG("leader key activated");
     leader_status = true;
     count = 0;
+    tapping_term_ms = tapping_term;
     active_leader_position = position;
+    reset_timer(k_uptime_get());
 };
 
 void zmk_leader_deactivate() {
@@ -180,6 +204,18 @@ void zmk_leader_deactivate() {
     leader_status = false;
     clear_candidates();
 };
+
+void behavior_leader_key_timer_handler(struct k_work *item) {
+    LOG_DBG("Leader timeout has been reached");
+    if (!leader_status) {
+        return;
+    }
+    if (timer_cancelled) {
+        return;
+    }
+    LOG_DBG("Leader deactivated due to timeout");
+    zmk_leader_deactivate();
+}
 
 static int position_state_changed_listener(const zmk_event_t *ev) {
     struct zmk_position_state_changed *data = as_zmk_position_state_changed(ev);
@@ -198,6 +234,8 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
             struct leader_seq_cfg *candidate_sequence = sequence_candidates[0].sequence;
             current_sequence[count] = data->position;
             press_leader_behavior(candidate_sequence, data->timestamp);
+            stop_timer();
+            reset_timer(data->timestamp);
             return ZMK_EV_EVENT_HANDLED;
         } else { // keyup
             struct leader_seq_cfg *candidate_sequence = sequence_candidates[0].sequence;
@@ -219,7 +257,6 @@ ZMK_SUBSCRIPTION(leader, zmk_position_state_changed);
 
 #define LEADER_INST(n)                                                                             \
     static struct leader_seq_cfg sequence_config_##n = {                                           \
-        .timeout_ms = 200,                                                                         \
         .virtual_key_position = ZMK_KEYMAP_LEN + __COUNTER__,                                      \
         .slow_release = false,                                                                     \
         .key_positions = DT_PROP(n, key_positions),                                                \
@@ -234,6 +271,7 @@ DT_INST_FOREACH_CHILD(0, LEADER_INST)
 #define INTITIALIAZE_LEADER_SEQUENCES(n) intitialiaze_leader_sequences(&sequence_config_##n);
 
 static int leader_init() {
+    k_work_init_delayable(&release_timer, behavior_leader_key_timer_handler);
     DT_INST_FOREACH_CHILD(0, INTITIALIAZE_LEADER_SEQUENCES);
     return 0;
 }
