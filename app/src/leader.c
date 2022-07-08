@@ -45,15 +45,13 @@ struct leader_seq_cfg {
     int8_t layers[];
 };
 
-struct leader_seq_candidate {
-    struct leader_seq_cfg *sequence;
-    const zmk_event_t *key_positions_pressed[CONFIG_ZMK_LEADER_MAX_KEYS_PER_SEQUENCE];
-};
-
 // set of keys pressed
 uint32_t current_sequence[CONFIG_ZMK_LEADER_MAX_KEYS_PER_SEQUENCE] = {-1};
 // the set of candidate leader based on the currently pressed_keys
-struct leader_seq_candidate sequence_candidates[CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY];
+int num_candidates;
+struct leader_seq_cfg *sequence_candidates[CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY];
+int num_comp_candidates;
+struct leader_seq_cfg *completed_sequence_candidates[CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY];
 // a lookup dict that maps a key position to all sequences on that position
 struct leader_seq_cfg *sequence_lookup[ZMK_KEYMAP_LEN][CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY] = {
     NULL};
@@ -99,13 +97,10 @@ static int intitialiaze_leader_sequences(struct leader_seq_cfg *seq) {
 static bool sequence_active_on_layer(struct leader_seq_cfg *sequence, uint8_t layer) {
     if (sequence->layers[0] == -1) {
         // -1 in the first layer position is global layer scope
-        LOG_DBG("LEADER ACTIVE ON %d", layer);
         return true;
     }
     for (int j = 0; j < sequence->layers_len; j++) {
-        LOG_DBG("LEADER CHECKING LAYER %d", sequence->layers[j]);
         if (sequence->layers[j] == layer) {
-            LOG_DBG("LEADER ACTIVE ON %d", layer);
             return true;
         }
     }
@@ -121,33 +116,32 @@ static bool has_current_sequence(struct leader_seq_cfg *sequence) {
     return true;
 }
 
-static int leader_find_candidates(int32_t position) {
-    LOG_DBG("LEADER FINDING CANDIDATES");
+static void leader_find_candidates(int32_t position) {
+    num_candidates = 0;
+    num_comp_candidates = 0;
     int number_of_leader_seq_candidates = 0;
     uint8_t highest_active_layer = zmk_keymap_highest_layer_active();
     for (int i = 0; i < CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY; i++) {
         struct leader_seq_cfg *sequence = sequence_lookup[position][i];
         if (sequence == NULL) {
-            LOG_DBG("LEADER FOUND %d CANDIDATES", number_of_leader_seq_candidates);
             return number_of_leader_seq_candidates;
         }
         if (sequence_active_on_layer(sequence, highest_active_layer) &&
             sequence->key_positions[count] == position && has_current_sequence(sequence)) {
-            LOG_DBG("FOUND CANDIDATE %d: %d", number_of_leader_seq_candidates, position);
-            sequence_candidates[number_of_leader_seq_candidates].sequence = sequence;
-            number_of_leader_seq_candidates++;
+            sequence_candidates[number_of_leader_seq_candidates] = sequence;
+            num_candidates++;
+            if (sequence->key_position_len == count + 1) {
+                completed_sequence_candidates[number_of_leader_seq_candidates] = sequence;
+                num_comp_candidates++;
+            }
         }
     }
-    LOG_DBG("LEADER FOUND %d CANDIDATES", number_of_leader_seq_candidates);
-    return number_of_leader_seq_candidates;
 }
 
 static int clear_candidates() {
     for (int i = 0; i < CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY; i++) {
-        if (sequence_candidates[i].sequence == NULL) {
-            return i;
-        }
-        sequence_candidates[i].sequence = NULL;
+        sequence_candidates[i] = NULL;
+        completed_sequence_candidates[i] = NULL;
     }
     return CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY;
 }
@@ -224,26 +218,29 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
     }
 
     if (leader_status && data->position != active_leader_position) {
-        int num_candidates;
-        num_candidates = leader_find_candidates(data->position);
+        leader_find_candidates(data->position);
+
         if (num_candidates == 0) {
             zmk_leader_deactivate();
             return 0;
         }
+
         if (data->state) { // keydown
-            struct leader_seq_cfg *candidate_sequence = sequence_candidates[0].sequence;
-            current_sequence[count] = data->position;
-            press_leader_behavior(candidate_sequence, data->timestamp);
             stop_timer();
-            reset_timer(data->timestamp);
+            current_sequence[count] = data->position;
+            for (int i = 0; i < num_comp_candidates; i++) {
+                press_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+            }
             return ZMK_EV_EVENT_HANDLED;
         } else { // keyup
-            struct leader_seq_cfg *candidate_sequence = sequence_candidates[0].sequence;
-            release_leader_behavior(candidate_sequence, data->timestamp);
+            for (int i = 0; i < num_comp_candidates; i++) {
+                release_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+            }
             if (num_candidates == 1) {
                 zmk_leader_deactivate();
             }
             count++;
+            reset_timer(data->timestamp);
             return ZMK_EV_EVENT_HANDLED;
         }
         return ZMK_EV_EVENT_HANDLED;
