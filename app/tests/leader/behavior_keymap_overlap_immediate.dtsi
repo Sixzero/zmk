@@ -13,6 +13,7 @@
 		leader_seq_one {
 			key-positions = <0>;
 			bindings = <&kp A>;
+			immediate-trigger;
 		};
 
 		leader_seq_two {

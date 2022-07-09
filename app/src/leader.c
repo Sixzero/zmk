@@ -34,9 +34,9 @@ bool timer_cancelled;
 struct leader_seq_cfg {
     int32_t key_positions[CONFIG_ZMK_LEADER_MAX_KEYS_PER_SEQUENCE];
     int32_t key_position_len;
-    // if slow release is set, the combo releases when the last key is released.
-    // otherwise, the combo releases when the first key is released.
-    bool slow_release;
+
+    bool immediate_trigger;
+    bool is_pressed;
     // the virtual key position is a key position outside the range used by the keyboard.
     // it is necessary so hold-taps can uniquely identify a behavior.
     int32_t virtual_key_position;
@@ -116,7 +116,16 @@ static bool has_current_sequence(struct leader_seq_cfg *sequence) {
     return true;
 }
 
+static int clear_candidates() {
+    for (int i = 0; i < CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY; i++) {
+        sequence_candidates[i] = NULL;
+        completed_sequence_candidates[i] = NULL;
+    }
+    return CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY;
+}
+
 static void leader_find_candidates(int32_t position) {
+    clear_candidates();
     num_candidates = 0;
     num_comp_candidates = 0;
     int number_of_leader_seq_candidates = 0;
@@ -138,14 +147,6 @@ static void leader_find_candidates(int32_t position) {
     }
 }
 
-static int clear_candidates() {
-    for (int i = 0; i < CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY; i++) {
-        sequence_candidates[i] = NULL;
-        completed_sequence_candidates[i] = NULL;
-    }
-    return CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY;
-}
-
 const struct zmk_listener zmk_listener_leader;
 
 static inline int press_leader_behavior(struct leader_seq_cfg *sequence, int32_t timestamp) {
@@ -154,6 +155,7 @@ static inline int press_leader_behavior(struct leader_seq_cfg *sequence, int32_t
         .timestamp = timestamp,
     };
 
+    sequence->is_pressed = true;
     return behavior_keymap_binding_pressed(&sequence->behavior, event);
 }
 
@@ -163,6 +165,7 @@ static inline int release_leader_behavior(struct leader_seq_cfg *sequence, int32
         .timestamp = timestamp,
     };
 
+    sequence->is_pressed = false;
     return behavior_keymap_binding_released(&sequence->behavior, event);
 }
 
@@ -208,6 +211,11 @@ void behavior_leader_key_timer_handler(struct k_work *item) {
         return;
     }
     LOG_DBG("Leader deactivated due to timeout");
+    for (int i = 0; i < num_comp_candidates; i++) {
+        LOG_DBG("LEADER PRESSING DUE TO TIMEOUT");
+        press_leader_behavior(completed_sequence_candidates[i], k_uptime_get());
+        release_leader_behavior(completed_sequence_candidates[i], k_uptime_get());
+    }
     zmk_leader_deactivate();
 }
 
@@ -229,19 +237,23 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
             stop_timer();
             current_sequence[count] = data->position;
             for (int i = 0; i < num_comp_candidates; i++) {
-                press_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+                if (completed_sequence_candidates[i]->immediate_trigger ||
+                    (num_candidates == 1 && num_comp_candidates == 1)) {
+                    LOG_DBG("LEADER PRESSING DUE TO CANDIDATES");
+                    press_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+                }
             }
-            return ZMK_EV_EVENT_HANDLED;
         } else { // keyup
             for (int i = 0; i < num_comp_candidates; i++) {
-                release_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+                if (completed_sequence_candidates[i]->is_pressed) {
+                    release_leader_behavior(completed_sequence_candidates[i], data->timestamp);
+                }
             }
             if (num_candidates == 1) {
                 zmk_leader_deactivate();
             }
             count++;
             reset_timer(data->timestamp);
-            return ZMK_EV_EVENT_HANDLED;
         }
         return ZMK_EV_EVENT_HANDLED;
     }
@@ -255,7 +267,8 @@ ZMK_SUBSCRIPTION(leader, zmk_position_state_changed);
 #define LEADER_INST(n)                                                                             \
     static struct leader_seq_cfg sequence_config_##n = {                                           \
         .virtual_key_position = ZMK_KEYMAP_LEN + __COUNTER__,                                      \
-        .slow_release = false,                                                                     \
+        .immediate_trigger = DT_PROP(n, immediate_trigger),                                        \
+        .is_pressed = false,                                                                       \
         .key_positions = DT_PROP(n, key_positions),                                                \
         .key_position_len = DT_PROP_LEN(n, key_positions),                                         \
         .behavior = ZMK_KEYMAP_EXTRACT_BINDING(0, n),                                              \

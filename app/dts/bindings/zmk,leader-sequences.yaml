@@ -18,3 +18,5 @@ child-binding:
     layers:
       type: array
       default: [-1]
+    immediate-trigger:
+      type: boolean
