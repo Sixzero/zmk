@@ -133,7 +133,7 @@ static void leader_find_candidates(int32_t position) {
     for (int i = 0; i < CONFIG_ZMK_LEADER_MAX_SEQUENCES_PER_KEY; i++) {
         struct leader_seq_cfg *sequence = sequence_lookup[position][i];
         if (sequence == NULL) {
-            return number_of_leader_seq_candidates;
+            continue;
         }
         if (sequence_active_on_layer(sequence, highest_active_layer) &&
             sequence->key_positions[count] == position && has_current_sequence(sequence)) {
