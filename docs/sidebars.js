@@ -11,6 +11,7 @@ module.exports = {
     Features: [
       "features/keymaps",
       "features/combos",
+      "features/leader",
       "features/conditional-layers",
       "features/debouncing",
       "features/displays",
@@ -29,6 +30,7 @@ module.exports = {
       "behaviors/mod-morph",
       "behaviors/dynamic-macros",
       "behaviors/macros",
+      "behaviors/leader-key",
       "behaviors/key-toggle",
       "behaviors/sticky-key",
       "behaviors/sticky-layer",

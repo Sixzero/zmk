@@ -35,6 +35,7 @@ ZMK is currently missing some features found in other popular firmware. This tab
 | [Macros](behaviors/macros.md)                                                                                                      | ✅  |    ✅     | ✅  |
 | Mouse Keys                                                                                                                         | ✅  |    ✅     | ✅  |
 | [Stenography](features/stenography.md)                                                                                                   | ✅  |           | ✅  |
+| [Leader Key](behaviors/leader-key.md)                                                                                              | ✅  |           | ✅  |
 | Mouse Keys                                                                                                                         | 🚧  |    ✅     | ✅  |
 | Low Active Power Usage                                                                                                             | ✅  |           |     |
 | Low Power Sleep States                                                                                                             | ✅  |    ✅     |     |

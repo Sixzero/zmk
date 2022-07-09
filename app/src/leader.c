@@ -230,7 +230,7 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
 
         if (num_candidates == 0) {
             zmk_leader_deactivate();
-            return 0;
+            return ZMK_EV_EVENT_HANDLED;
         }
 
         if (data->state) { // keydown
