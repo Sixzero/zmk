@@ -203,7 +203,6 @@ void zmk_leader_deactivate() {
 };
 
 void behavior_leader_key_timer_handler(struct k_work *item) {
-    LOG_DBG("Leader timeout has been reached");
     if (!leader_status) {
         return;
     }
@@ -212,7 +211,6 @@ void behavior_leader_key_timer_handler(struct k_work *item) {
     }
     LOG_DBG("Leader deactivated due to timeout");
     for (int i = 0; i < num_comp_candidates; i++) {
-        LOG_DBG("LEADER PRESSING DUE TO TIMEOUT");
         press_leader_behavior(completed_sequence_candidates[i], k_uptime_get());
         release_leader_behavior(completed_sequence_candidates[i], k_uptime_get());
     }
@@ -230,7 +228,7 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
 
         if (num_candidates == 0) {
             zmk_leader_deactivate();
-            return ZMK_EV_EVENT_HANDLED;
+            return 0;
         }
 
         if (data->state) { // keydown
@@ -239,7 +237,6 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
             for (int i = 0; i < num_comp_candidates; i++) {
                 if (completed_sequence_candidates[i]->immediate_trigger ||
                     (num_candidates == 1 && num_comp_candidates == 1)) {
-                    LOG_DBG("LEADER PRESSING DUE TO CANDIDATES");
                     press_leader_behavior(completed_sequence_candidates[i], data->timestamp);
                 }
             }
