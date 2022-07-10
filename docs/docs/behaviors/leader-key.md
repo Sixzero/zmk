@@ -19,7 +19,7 @@ Example:
 
 ### Configuration
 
-#### `tapping-term-ms`
+#### `timeout-ms`
 
 Defines the amount of time to wait to trigger a completed leader sequence. Defaults to 200ms.
 
@@ -36,3 +36,7 @@ To change the timeout term, you can update the existing behavior:
     };
 };
 ```
+
+#### `timeout-on-activation`
+
+By default, the leader key will not have a timeout on the initial press, and will wait for a sequence to be completed or another key to be pressed. Specify `timeout-on-activation` if you want a timeout on the initial leader key press.

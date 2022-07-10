@@ -4,6 +4,7 @@
 
 &leader {
 	timeout-ms = <200>;
+	timeout-on-activation;
 };
 
 / {

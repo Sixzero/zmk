@@ -187,13 +187,15 @@ static void reset_timer(int32_t timestamp) {
     }
 }
 
-void zmk_leader_activate(int32_t timeout, uint32_t position) {
+void zmk_leader_activate(int32_t timeout, bool timeout_on_activation, uint32_t position) {
     LOG_DBG("leader key activated");
     leader_status = true;
     count = 0;
     timeout_ms = timeout;
     active_leader_position = position;
-    reset_timer(k_uptime_get());
+    if (timeout_on_activation) {
+        reset_timer(k_uptime_get());
+    }
 };
 
 void zmk_leader_deactivate() {
