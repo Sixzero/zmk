@@ -229,8 +229,10 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
         leader_find_candidates(data->position);
 
         if (num_candidates == 0) {
-            zmk_leader_deactivate();
-            return 0;
+            if (!data->state) {
+                zmk_leader_deactivate();
+            }
+            return ZMK_EV_EVENT_HANDLED;
         }
 
         if (data->state) { // keydown
