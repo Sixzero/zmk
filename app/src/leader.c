@@ -26,6 +26,7 @@ bool leader_status;
 int32_t count;
 int32_t timeout_ms;
 int32_t active_leader_position;
+bool first_release;
 struct k_work_delayable release_timer;
 int64_t release_at;
 bool timer_started;
@@ -193,6 +194,7 @@ void zmk_leader_activate(int32_t timeout, bool timeout_on_activation, uint32_t p
     count = 0;
     timeout_ms = timeout;
     active_leader_position = position;
+    first_release = false;
     if (timeout_on_activation) {
         reset_timer(k_uptime_get());
     }
@@ -225,7 +227,12 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
         return 0;
     }
 
-    if (leader_status && data->position != active_leader_position) {
+    if (!data->state && data->position == active_leader_position && !first_release) {
+        first_release = true;
+        return 0;
+    }
+
+    if (leader_status) {
         leader_find_candidates(data->position);
 
         if (num_candidates == 0) {

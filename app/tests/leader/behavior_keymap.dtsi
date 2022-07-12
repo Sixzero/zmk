@@ -21,6 +21,11 @@
 			bindings = <&kp B>;
 		};
 
+		leader_seq_three {
+			key-positions = <3>;
+			bindings = <&kp N1>;
+		};
+
 	};
 
 	keymap {
