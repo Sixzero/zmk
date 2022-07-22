@@ -257,7 +257,7 @@ static int position_state_changed_listener(const zmk_event_t *ev) {
                     release_leader_behavior(completed_sequence_candidates[i], data->timestamp);
                 }
             }
-            if (num_candidates == 1) {
+            if (num_candidates == 1 && num_comp_candidates == 1) {
                 zmk_leader_deactivate();
             }
             count++;
