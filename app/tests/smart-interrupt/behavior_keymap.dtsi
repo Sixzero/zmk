@@ -11,6 +11,7 @@
             bindings = <&kt LALT>, <&kp TAB>, <&kt LALT>;
             shared-key-positions = <2 3>;
             shared-layers = <1>;
+            timeout-ms = <200>;
         };
     };
 

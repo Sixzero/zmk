@@ -41,6 +41,10 @@ Pressing `smart-int` will fire the first behavior, and output `A`, as well as th
 
 ### Advanced Configuration
 
+#### `timeout-ms`
+
+Setting `timeout-ms` will cause the deactivation behavior to fire when the time has elapsed after releasing the Smart Interrupt or a shared key.
+
 #### `shared-key-positions`
 
 - Including `shared-key-positions` in your smart interrupt definition will let the key positions specified NOT trigger the interrupt behavior when a smart interrupt is active.
