@@ -34,14 +34,7 @@ properties:
   retro-tap:
     type: boolean
   retro-tap-behavior:
-    type: string
-    default: ""
-  retro-tap-param1:
-    type: int
-    default: 0
-  retro-tap-param2:
-    type: int
-    default: 0
+    type: phandle
   hold-trigger-key-positions:
     type: array
     required: false
