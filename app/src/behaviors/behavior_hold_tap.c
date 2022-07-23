@@ -61,9 +61,7 @@ struct behavior_hold_tap_config {
     bool global_quick_tap;
     enum flavor flavor;
     bool retro_tap;
-    char *retro_tap_behavior;
-    uint32_t retro_tap_param1;
-    uint32_t retro_tap_param2;
+    struct zmk_behavior_binding *retro_tap_behavior;
     int32_t hold_trigger_key_positions_len;
     int32_t hold_trigger_key_positions[];
 };
@@ -376,9 +374,7 @@ static int press_binding(struct active_hold_tap *hold_tap) {
         binding.behavior_dev = hold_tap->config->hold_behavior_dev;
         binding.param1 = hold_tap->param_hold;
     } else if (hold_tap->status == STATUS_RETRO_TAP) {
-        binding.behavior_dev = hold_tap->config->retro_tap_behavior;
-        binding.param1 = hold_tap->config->retro_tap_param1;
-        binding.param2 = hold_tap->config->retro_tap_param2;
+        binding = *hold_tap->config->retro_tap_behavior;
         store_last_hold_tapped(hold_tap);
     } else {
         binding.behavior_dev = hold_tap->config->tap_behavior_dev;
@@ -403,9 +399,7 @@ static int release_binding(struct active_hold_tap *hold_tap) {
         binding.behavior_dev = hold_tap->config->hold_behavior_dev;
         binding.param1 = hold_tap->param_hold;
     } else if (hold_tap->status == STATUS_RETRO_TAP) {
-        binding.behavior_dev = hold_tap->config->retro_tap_behavior;
-        binding.param1 = hold_tap->config->retro_tap_param1;
-        binding.param2 = hold_tap->config->retro_tap_param2;
+        binding = *hold_tap->config->retro_tap_behavior;
     } else {
         binding.behavior_dev = hold_tap->config->tap_behavior_dev;
         binding.param1 = hold_tap->param_tap;
@@ -496,7 +490,7 @@ static void decide_retro_tap(struct active_hold_tap *hold_tap) {
     if (hold_tap->status == STATUS_HOLD_TIMER) {
         release_binding(hold_tap);
         LOG_DBG("%d retro tap", hold_tap->position);
-        if (strcmp(hold_tap->config->retro_tap_behavior, "") == 0) {
+        if (!hold_tap->config->retro_tap_behavior) {
             hold_tap->status = STATUS_TAP;
         } else {
             hold_tap->status = STATUS_RETRO_TAP;
@@ -716,9 +710,7 @@ static int behavior_hold_tap_init(const struct device *dev) {
         .global_quick_tap = DT_INST_PROP(n, global_quick_tap),                                     \
         .flavor = DT_ENUM_IDX(DT_DRV_INST(n), flavor),                                             \
         .retro_tap = DT_INST_PROP(n, retro_tap),                                                   \
-        .retro_tap_behavior = DT_INST_PROP(n, retro_tap_behavior),                                 \
-        .retro_tap_param1 = DT_INST_PROP(n, retro_tap_param1),                                     \
-        .retro_tap_param2 = DT_INST_PROP(n, retro_tap_param2),                                     \
+        .retro_tap_behavior = DT_INST_PROP_OR(n, retro_tap_behavior, NULL),                        \
         .hold_trigger_key_positions = DT_INST_PROP(n, hold_trigger_key_positions),                 \
         .hold_trigger_key_positions_len = DT_INST_PROP_LEN(n, hold_trigger_key_positions),         \
     };                                                                                             \
