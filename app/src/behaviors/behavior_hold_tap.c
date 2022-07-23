@@ -476,7 +476,8 @@ static void decide_hold_tap(struct active_hold_tap *hold_tap,
             decision_moment_str(decision_moment));
     undecided_hold_tap = NULL;
 
-    if (hold_tap->config->hold_while_undecided && decision_moment != HT_QUICK_TAP) {
+    if (hold_tap->config->hold_while_undecided &&
+        !(hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT)) {
         struct zmk_behavior_binding_event event = {
             .position = hold_tap->position,
             .timestamp = hold_tap->timestamp,
@@ -493,6 +494,17 @@ static void decide_hold_tap(struct active_hold_tap *hold_tap,
 static void decide_retro_tap(struct active_hold_tap *hold_tap) {
     if (!hold_tap->config->retro_tap) {
         return;
+    }
+    if (hold_tap->config->hold_while_undecided &&
+        (hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT)) {
+        struct zmk_behavior_binding_event event = {
+            .position = hold_tap->position,
+            .timestamp = hold_tap->timestamp,
+        };
+        struct zmk_behavior_binding binding = {0};
+        binding.behavior_dev = hold_tap->config->hold_behavior_dev;
+        binding.param1 = hold_tap->param_hold;
+        behavior_keymap_binding_released(&binding, event);
     }
     if (hold_tap->status == STATUS_HOLD_TIMER) {
         release_binding(hold_tap);
