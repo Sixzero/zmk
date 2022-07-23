@@ -59,6 +59,7 @@ struct behavior_hold_tap_config {
     int quick_tap_ms;
     bool global_quick_tap;
     enum flavor flavor;
+    bool hold_while_undecided;
     bool retro_tap;
     int32_t hold_trigger_key_positions_len;
     int32_t hold_trigger_key_positions[];
@@ -66,6 +67,7 @@ struct behavior_hold_tap_config {
 
 // this data is specific for each hold-tap
 struct active_hold_tap {
+    bool first_press;
     int32_t position;
     uint32_t param_hold;
     uint32_t param_tap;
@@ -218,6 +220,7 @@ static struct active_hold_tap *store_hold_tap(uint32_t position, uint32_t param_
         if (active_hold_taps[i].position != ZMK_BHV_HOLD_TAP_POSITION_NOT_USED) {
             continue;
         }
+        active_hold_taps[i].first_press = true;
         active_hold_taps[i].position = position;
         active_hold_taps[i].status = STATUS_UNDECIDED;
         active_hold_taps[i].config = config;
@@ -472,6 +475,17 @@ static void decide_hold_tap(struct active_hold_tap *hold_tap,
             status_str(hold_tap->status), flavor_str(hold_tap->config->flavor),
             decision_moment_str(decision_moment));
     undecided_hold_tap = NULL;
+
+    if (hold_tap->config->hold_while_undecided && decision_moment != HT_QUICK_TAP) {
+        struct zmk_behavior_binding_event event = {
+            .position = hold_tap->position,
+            .timestamp = hold_tap->timestamp,
+        };
+        struct zmk_behavior_binding binding = {0};
+        binding.behavior_dev = hold_tap->config->hold_behavior_dev;
+        binding.param1 = hold_tap->param_hold;
+        behavior_keymap_binding_released(&binding, event);
+    }
     press_binding(hold_tap);
     release_captured_events();
 }
@@ -529,6 +543,12 @@ static int on_hold_tap_binding_pressed(struct zmk_behavior_binding *binding,
 
     if (is_quick_tap(hold_tap)) {
         decide_hold_tap(hold_tap, HT_QUICK_TAP);
+    } else if (cfg->hold_while_undecided) {
+        struct zmk_behavior_binding hold_binding = {0};
+        hold_binding.behavior_dev = cfg->hold_behavior_dev;
+        hold_binding.param1 = binding->param1;
+        LOG_DBG("%d hold behavior pressed while undecided", event.position);
+        behavior_keymap_binding_pressed(&hold_binding, event);
     }
 
     // if this behavior was queued we have to adjust the timer to only
@@ -645,6 +665,13 @@ static int keycode_state_changed_listener(const zmk_event_t *eh) {
         return ZMK_EV_EVENT_BUBBLE;
     }
 
+    if (undecided_hold_tap->first_press) {
+        undecided_hold_tap->first_press = false;
+        if (undecided_hold_tap->config->hold_while_undecided) {
+            return ZMK_EV_EVENT_BUBBLE;
+        }
+    }
+
     // only key-up events will bubble through position_state_changed_listener
     // if a undecided_hold_tap is active.
     LOG_DBG("%d capturing 0x%02X %s event", undecided_hold_tap->position, ev->keycode,
@@ -698,6 +725,7 @@ static int behavior_hold_tap_init(const struct device *dev) {
         .quick_tap_ms = DT_INST_PROP(n, quick_tap_ms),                                             \
         .global_quick_tap = DT_INST_PROP(n, global_quick_tap),                                     \
         .flavor = DT_ENUM_IDX(DT_DRV_INST(n), flavor),                                             \
+        .hold_while_undecided = DT_INST_PROP(n, hold_while_undecided),                             \
         .retro_tap = DT_INST_PROP(n, retro_tap),                                                   \
         .hold_trigger_key_positions = DT_INST_PROP(n, hold_trigger_key_positions),                 \
         .hold_trigger_key_positions_len = DT_INST_PROP_LEN(n, hold_trigger_key_positions),         \
