@@ -491,7 +491,7 @@ static void decide_hold_tap(struct active_hold_tap *hold_tap,
     undecided_hold_tap = NULL;
 
     if (hold_tap->config->hold_while_undecided &&
-        !(hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT)) {
+         !(hold_tap->status == STATUS_HOLD_INTERRUPT)) {
         struct zmk_behavior_binding_event event = {
             .position = hold_tap->position,
             .timestamp = hold_tap->timestamp,
@@ -510,7 +510,7 @@ static void decide_retro_tap(struct active_hold_tap *hold_tap) {
         return;
     }
     if (hold_tap->config->hold_while_undecided &&
-        (hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT)) {
+        (hold_tap->status == STATUS_HOLD_INTERRUPT)) {
         struct zmk_behavior_binding_event event = {
             .position = hold_tap->position,
             .timestamp = hold_tap->timestamp,
